@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>Firecar</title>
+    <style>
+
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            position: relative
+        }
+
+        #warning-message {
+            display: none;
+        }
+
+        @media only screen and (orientation: portrait) {
+            #wrapper {
+                display: none;
+            }
+
+            #warning-message {
+                display: block;
+            }
+        }
+
+        @media only screen and (orientation: landscape) {
+            #warning-message {
+                display: none;
+            }
+
+            #accelerate-wrapper {
+                transform-origin: 0 0;
+                -ms-transform: rotate(270deg);
+                -webkit-transform: rotate(270deg);
+                transform: rotate(270deg);
+                position: absolute;
+                top: 100vh;
+            }
+
+            input[type=range] {
+                -webkit-appearance: none;
+                width: 100vh;
+                position: absolute;
+                padding: 0;
+                margin: 0;
+            }
+
+            input[type=range]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                border: 2vh solid #2196F3;
+                height: 20vw;
+                width: 10vh;
+                background: #ffffff;
+                cursor: pointer;
+            }
+
+            /* All the same stuff for Firefox */
+            input[type=range]::-moz-range-thumb {
+                border: 2vh solid #2196F3;
+                height: 20vw;
+                width: 10vh;
+                border-radius: 3px;
+                background: #ffffff;
+                cursor: pointer;
+            }
+
+            /* All the same stuff for IE */
+            input[type=range]::-ms-thumb {
+                border: 2vh solid #2196F3;
+                height: 20vw;
+                width: 10vh;
+                border-radius: 3px;
+                background: #ffffff;
+                cursor: pointer;
+            }
+
+            #buttons-wrapper {
+                position: absolute;
+                top: 0;
+                right: 0;
+            }
+
+            .switch {
+                position: relative;
+                display: block;
+                width: 44vh;
+                height: 25vh;
+            }
+
+            /* Hide default HTML checkbox */
+            .switch input {
+                display: none;
+            }
+
+            /* The slider */
+            .slider {
+                position: absolute;
+                cursor: pointer;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: #ccc;
+                -webkit-transition: .4s;
+                transition: .4s;
+            }
+
+            .slider:before {
+                position: absolute;
+                content: "";
+                height: 20vh;
+                width: 20vh;
+                left: 2vh;
+                top: 2vh;
+                background-color: white;
+                -webkit-transition: .4s;
+                transition: .4s;
+            }
+
+            input:checked + .slider {
+                background-color: #2196F3;
+            }
+
+            input:focus + .slider {
+                box-shadow: 0 0 1px #2196F3;
+            }
+
+            input:checked + .slider:before {
+                -webkit-transform: translateX(20vh);
+                -ms-transform: translateX(20vh);
+                transform: translateX(20vh);
+            }
+
+            button#login {
+                position: absolute;
+                display: block;
+                width: 20vw;
+                height: 10vh;
+                top: 45vh;
+                left: 40vw;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="wrapper">
+    <div id="accelerate-wrapper">
+        <input type="range" min="35" max="135" step="1"
+               id="accelerator">
+    </div>
+    <button id="login">Login</button>
+    <div id="buttons-wrapper">
+        <label class="switch">
+            <input type="checkbox" id="lights">
+            <div class="slider"></div>
+        </label>
+        <label class="switch">
+            <input type="checkbox" id="horn">
+            <div class="slider"></div>
+        </label>
+        <label class="switch">
+            <input type="checkbox" id="aux1">
+            <div class="slider"></div>
+        </label>
+        <label class="switch">
+            <input type="checkbox" id="aux2">
+            <div class="slider"></div>
+        </label>
+    </div>
+</div>
+<div id="warning-message">
+    Please put your fuckin device in fuckin landscape mode.
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/3.4.1/firebase.js"></script>
+<script>
+
+    var config = {
+        apiKey: "",
+        authDomain: "",
+        databaseURL: "",
+        storageBucket: "",
+        allowedUid: ""
+    };
+    firebase.initializeApp(config);
+
+    function handleLogin() {
+        var provider = new firebase.auth.GoogleAuthProvider();
+        firebase.auth().signInWithPopup(provider).then(function (result) {
+            var user = result.user;
+            if (user.uid !== config.allowedUid) {
+                handleLogout();
+            }
+        });
+    }
+
+    function handleLogout() {
+        firebase.auth().signOut().then(function () {
+            alert('[ WARNING ] - You are not allowed to control this robot.');
+            config.user = null;
+        });
+    }
+
+    var login = document.getElementById('login');
+    login.addEventListener('click', handleLogin);
+
+    firebase.auth().onAuthStateChanged(function (user) {
+        if (user) {
+            login.style.display = "none";
+            config.user = user;
+        } else {
+            login.style.display = "block";
+        }
+    });
+
+    function accelerate() {
+        if (config.user) {
+            firebase.database().ref('throttle').set(parseInt(this.value).toString());
+        }
+    }
+
+    function brake() {
+        if (config.user) {
+            firebase.database().ref('throttle').set("35");
+            document.getElementById('accelerator').value = 35;
+        }
+    }
+
+    function handleDirection(event) {
+        if (config.user) {
+            var x = event.beta;
+            if (x > 90) {
+                x = 90;
+            }
+            if (x < -90) {
+                x = -90;
+            }
+            x += 90;
+
+            x = convertRange(x, [50, 130], [30, 150]);
+
+            firebase.database().ref('direction').set(parseInt(x).toString());
+        }
+    }
+
+    function convertRange(value, rangeFrom, rangeTo) {
+        value = ( value - rangeFrom[0] ) * ( rangeTo[1] - rangeTo[0] ) / ( rangeFrom[1] - rangeFrom[0] ) + rangeTo[0];
+        if (value < rangeTo[0]) {
+            value = rangeTo[0];
+        } else if (value > rangeTo[1]) {
+            value = rangeTo[1];
+        }
+        return value;
+    }
+
+    function handleSwitches() {
+        if (config.user) {
+            var id = this.getAttribute('id');
+            var checked = this.checked;
+
+            firebase.database().ref('switches/' + id).set(checked);
+        }
+    }
+
+    function throttle(fn, threshhold, scope) {
+        var last;
+        var deferTimer;
+        return function () {
+            var context = scope || this;
+
+            var now = +new Date,
+                    args = arguments;
+            if (last && now < last + threshhold) {
+                clearTimeout(deferTimer);
+                deferTimer = setTimeout(function () {
+                    last = now;
+                    fn.apply(context, args);
+                }, threshhold);
+            } else {
+                last = now;
+                fn.apply(context, args);
+            }
+        };
+    }
+
+    firebase.database().ref('throttle').on('value', function (snap) {
+        var value = snap.val();
+        document.getElementById('accelerator').value = value;
+    });
+
+    var accelerator = document.getElementById('accelerator');
+    accelerator.addEventListener('input', throttle(accelerate, 250, accelerator));
+    accelerator.addEventListener('change', brake);
+
+    firebase.database().ref('switches').on('value', function (snap) {
+        var values = snap.val();
+        var keys = Object.keys(values);
+        keys.forEach(function (key) {
+            document.getElementById(key).checked = values[key];
+        })
+    });
+
+    var switches = document.querySelectorAll('input[type="checkbox"]');
+    switches.forEach(function (e) {
+        e.addEventListener('change', handleSwitches);
+    });
+    window.addEventListener('deviceorientation', throttle(handleDirection, 250, this));
+
+</script>
+
+
+</body>
+</html>
